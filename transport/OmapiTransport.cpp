@@ -30,7 +30,7 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  **
- ** Copyright 2022 NXP
+ ** Copyright 2022-2023 NXP
  **
  *********************************************************************************/
 #define LOG_TAG "OmapiTransport"
@@ -306,6 +306,7 @@ bool OmapiTransport::internalProtectedTransmitApdu(
         std::vector<uint8_t> apdu, std::vector<uint8_t>& transmitResponse) {
     //auto mSEListener = std::make_shared<SEListener>();
     std::vector<uint8_t> selectResponse = {};
+    const std::vector<uint8_t> sbAppletAID = {0xA0, 0x00, 0x00, 0x00, 0x62};
 
     if (reader == nullptr) {
         LOG(ERROR) << "eSE reader is null";
@@ -360,7 +361,9 @@ bool OmapiTransport::internalProtectedTransmitApdu(
         LOG(ERROR) << "getSelectResponse size error";
         return false;
       }
-      mSBAccessController.parseResponse(selectResponse);
+      if (sbAppletAID == mSelectableAid) {
+        mSBAccessController.parseResponse(selectResponse);
+      }
     }
 
     status = false;
