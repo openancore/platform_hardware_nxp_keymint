@@ -368,7 +368,7 @@ bool OmapiTransport::internalProtectedTransmitApdu(
 
     status = false;
     if (mSBAccessController.isOperationAllowed(apdu[APDU_INS_OFFSET])) {
-        LOGD_OMAPI("constructed apdu: " << apdu);
+        LOGD_OMAPI("constructed apdu");
         res = channel->transmit(apdu, &transmitResponse);
         status = true;
     } else {
