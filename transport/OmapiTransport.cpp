@@ -45,6 +45,7 @@
 
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
+#include <hardware_legacy/power.h>
 
 #include "OmapiTransport.h"
 
@@ -58,6 +59,8 @@
 #endif
 namespace keymint::javacard {
 
+const char *kWakelock = "nxp_keymint_session";
+
 class SEListener : public ::aidl::android::se::omapi::BnSecureElementListener {};
 
 #ifdef NXP_EXTNS
@@ -66,6 +69,7 @@ void omapiSessionTimerFunc(union sigval arg){
      OmapiTransport *obj = (OmapiTransport*)arg.sival_ptr;
      if(obj != nullptr)
        obj->closeChannel();
+     release_wake_lock(kWakelock);
 }
 
 void OmapiTransport::BinderDiedCallback(void *cookie) {
@@ -385,6 +389,7 @@ bool OmapiTransport::internalProtectedTransmitApdu(
          (getApduStatus(transmitResponse) == RESP_CHANNEL_NOT_AVAILABLE))) {
       closeChannel(); // close immediately
     } else {
+      acquire_wake_lock(PARTIAL_WAKE_LOCK, kWakelock);
       LOGD_OMAPI("Set the timer with timeout " << timeout << " ms");
       mTimer.set(timeout, this, omapiSessionTimerFunc);
     }
