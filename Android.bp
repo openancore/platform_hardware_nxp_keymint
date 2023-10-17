@@ -122,7 +122,6 @@ cc_library {
         "libcutils",
         "libutils",
         "libhardware",
-        "libhardware_legacy",
         "libhidlbase",
         "libbinder_ndk",
     ],
