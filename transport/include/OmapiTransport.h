@@ -30,7 +30,7 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  **
- ** Copyright 2022 NXP
+ ** Copyright 2022-2023 NXP
  **
  *********************************************************************************/
 #if defined OMAPI_TRANSPORT
@@ -42,7 +42,7 @@
 #include <aidl/android/se/omapi/ISecureElementReader.h>
 #include <aidl/android/se/omapi/ISecureElementService.h>
 #include <aidl/android/se/omapi/ISecureElementSession.h>
-//#include <aidl/android/se/omapi/SecureElementErrorCode.h>
+// #include <aidl/android/se/omapi/SecureElementErrorCode.h>
 #include <android/binder_manager.h>
 
 #include <map>
@@ -54,6 +54,9 @@
 #include <vector>
 
 #include <SBAccessController.h>
+
+#define APP_NOT_FOUND_SW1 0x6A
+#define APP_NOT_FOUND_SW2 0x82
 
 namespace keymint::javacard {
 using std::shared_ptr;
@@ -67,16 +70,27 @@ class OmapiTransport : public ITransport {
 
 public:
   OmapiTransport(const std::vector<uint8_t> &mAppletAID)
-      : ITransport(mAppletAID), mSelectableAid(mAppletAID) {
+      : ITransport(mAppletAID), mTimeout(0), mSelectableAid(mAppletAID),
+        omapiSeService(nullptr), eSEReader(nullptr), session(nullptr),
+        channel(nullptr), mVSReaders({}) {
 #ifdef NXP_EXTNS
     mDeathRecipient = ::ndk::ScopedAIBinder_DeathRecipient(
         AIBinder_DeathRecipient_new(BinderDiedCallback));
 #endif
   }
 
+#ifdef NXP_EXTNS
+  /**
+   * Sets Applet Aid
+   */
+  bool setAppletAid(const vector<uint8_t> &aid) {
+    mSelectableAid = aid;
+    return true;
+  }
+#endif
     /**
-     * Gets the binder instance of ISEService, gets the reader corresponding to secure element, establishes a session
-     * and opens a basic channel.
+     * Gets the binder instance of ISEService, gets te reader corresponding to secure element,
+     * establishes a session and opens a basic channel.
      */
     bool openConnection() override;
     /**
@@ -93,23 +107,28 @@ public:
      */
     bool isConnected() override;
 #ifdef NXP_EXTNS
+    /**
+     * Closes the opened channel.
+     */
     void closeChannel();
+    /**
+     * set default Interval timer timeout value.
+     */
+    void setDefaultTimeout(int timeout);
 #endif
 
   private:
     //AppletConnection mAppletConnection;
     SBAccessController mSBAccessController;
     IntervalTimer mTimer;
+    int mTimeout;
     std::vector<uint8_t> mSelectableAid;
-    std::shared_ptr<aidl::android::se::omapi::ISecureElementService> omapiSeService = nullptr;
-    std::shared_ptr<aidl::android::se::omapi::ISecureElementReader> eSEReader = nullptr;
-    std::shared_ptr<aidl::android::se::omapi::ISecureElementSession> session = nullptr;
-    std::shared_ptr<aidl::android::se::omapi::ISecureElementChannel> channel = nullptr;
+    std::shared_ptr<aidl::android::se::omapi::ISecureElementService> omapiSeService;
+    std::shared_ptr<aidl::android::se::omapi::ISecureElementReader> eSEReader;
+    std::shared_ptr<aidl::android::se::omapi::ISecureElementSession> session;
+    std::shared_ptr<aidl::android::se::omapi::ISecureElementChannel> channel;
     std::map<std::string, std::shared_ptr<aidl::android::se::omapi::ISecureElementReader>>
-            mVSReaders = {};
-    std::string const ESE_READER_PREFIX = "eSE";
-    constexpr static const char omapiServiceName[] =
-            "android.se.omapi.ISecureElementService/default";
+        mVSReaders;
 #ifdef NXP_EXTNS
     /* Applet ID Weaver */
     const std::vector<uint8_t> kWeaverAID = {0xA0, 0x00, 0x00, 0x03, 0x96, 0x10, 0x10};
