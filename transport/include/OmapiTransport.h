@@ -78,6 +78,7 @@ public:
         AIBinder_DeathRecipient_new(BinderDiedCallback));
 #endif
   }
+  virtual ~OmapiTransport();
 
 #ifdef NXP_EXTNS
   /**
@@ -140,6 +141,8 @@ public:
 
 #ifdef NXP_EXTNS
     ::ndk::ScopedAIBinder_DeathRecipient mDeathRecipient;
+    std::mutex mCookieKeysMutex;
+    std::vector<uintptr_t> mCookieKeys;
 
     static void BinderDiedCallback(void *cookie);
     bool internalProtectedTransmitApdu(
