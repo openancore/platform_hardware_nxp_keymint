@@ -88,7 +88,7 @@ int main() {
 #if defined OMAPI_TRANSPORT
     std::shared_ptr<JavacardSecureElement> card =
         std::make_shared<JavacardSecureElement>(
-            std::make_shared<OmapiTransport>(gStrongBoxAppletAID));
+            OmapiTransport::make(gStrongBoxAppletAID));
 #elif defined HAL_TO_HAL_TRANSPORT
     std::shared_ptr<JavacardSecureElement> card =
         std::make_shared<JavacardSecureElement>(

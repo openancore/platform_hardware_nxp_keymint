@@ -73,7 +73,7 @@ class SEListener : public ::aidl::android::se::omapi::BnSecureElementListener {}
 
 static std::mutex sCookiesMutex;
 static uintptr_t sCookiesKeyCounter = 0;
-static std::map<uintptr_t, OmapiTransport *> sCookies;
+static std::map<uintptr_t, std::weak_ptr<OmapiTransport>> sCookies;
 
 void omapiSessionTimerFunc(union sigval arg){
      LOG(INFO) << "Session Timer expired !!";
@@ -83,18 +83,24 @@ void omapiSessionTimerFunc(union sigval arg){
 }
 
 void OmapiTransport::BinderDiedCallback(void *cookie) {
-  std::lock_guard lock(sCookiesMutex);
-  if (auto it = sCookies.find(reinterpret_cast<uintptr_t>(cookie));
-      it != sCookies.end()) {
-    LOG(ERROR)
-        << "Received binder died with cookie: " << cookie
-        << ". OMAPI Service died, closing connection";
-    it->second->closeConnection();
-  } else {
-    LOG(ERROR)
-        << "Received binder died with cookie: " << cookie
-        << ". OMAPI Service died, but no OmapiTransport.";
-  }
+    std::shared_ptr<OmapiTransport> transport = nullptr;
+    {
+      std::lock_guard lock(sCookiesMutex);
+      if (auto it = sCookies.find(reinterpret_cast<uintptr_t>(cookie));
+          it != sCookies.end()) {
+        LOG(ERROR)
+            << "Received binder died with cookie: " << cookie
+            << ". OMAPI Service died, closing connection";
+        transport = it->second.lock();
+      } else {
+        LOG(ERROR)
+            << "Received binder died with cookie: " << cookie
+            << ". OMAPI Service died, but no OmapiTransport.";
+      }
+    }
+    if (transport) {
+      transport->closeConnection();
+    }
 }
 #endif
 
@@ -133,7 +139,7 @@ bool OmapiTransport::initialize() {
       uintptr_t cookieKey = sCookiesKeyCounter++;
       std::lock_guard mLock(mCookieKeysMutex);
       mCookieKeys.push_back(cookieKey);
-      sCookies[cookieKey] = this;
+      sCookies[cookieKey] = shared_from_this();
       LOG(INFO) << "linkToDeath on OMAPI service with cookie: " << cookieKey;
       AIBinder_linkToDeath(omapiSeService->asBinder().get(),
                            mDeathRecipient.get(),

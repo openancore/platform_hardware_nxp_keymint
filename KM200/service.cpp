@@ -76,7 +76,7 @@ int main() {
     // Javacard Secure Element
 #if defined OMAPI_TRANSPORT
     std::shared_ptr<JavacardSecureElement> card =
-        std::make_shared<JavacardSecureElement>(std::make_shared<OmapiTransport>(gStrongBoxAppletAID), getOsVersion(),
+        std::make_shared<JavacardSecureElement>(OmapiTransport::make(gStrongBoxAppletAID), getOsVersion(),
                                                 getOsPatchlevel(), getVendorPatchlevel());
 #elif defined HAL_TO_HAL_TRANSPORT
     std::shared_ptr<JavacardSecureElement> card =
