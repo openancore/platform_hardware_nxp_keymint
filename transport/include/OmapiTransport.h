@@ -66,18 +66,14 @@ using std::vector;
  * OmapiTransport is derived from ITransport. This class gets the OMAPI service binder instance and uses IPC to
  * communicate with OMAPI service. OMAPI inturn communicates with hardware via ISecureElement.
  */
-class OmapiTransport : public ITransport {
+class OmapiTransport : public std::enable_shared_from_this<OmapiTransport>,
+                       public ITransport {
 
 public:
-  OmapiTransport(const std::vector<uint8_t> &mAppletAID)
-      : ITransport(mAppletAID), mTimeout(0), mSelectableAid(mAppletAID),
-        omapiSeService(nullptr), eSEReader(nullptr), session(nullptr),
-        channel(nullptr), mVSReaders({}) {
-#ifdef NXP_EXTNS
-    mDeathRecipient = ::ndk::ScopedAIBinder_DeathRecipient(
-        AIBinder_DeathRecipient_new(BinderDiedCallback));
-#endif
+  static shared_ptr<OmapiTransport> make(const std::vector<uint8_t> &mAppletAID) {
+    return std::shared_ptr<OmapiTransport>(new OmapiTransport(mAppletAID));
   }
+  virtual ~OmapiTransport();
 
 #ifdef NXP_EXTNS
   /**
@@ -133,6 +129,15 @@ public:
     /* Applet ID Weaver */
     const std::vector<uint8_t> kWeaverAID = {0xA0, 0x00, 0x00, 0x03, 0x96, 0x10, 0x10};
 #endif
+    OmapiTransport(const std::vector<uint8_t> &mAppletAID)
+        : ITransport(mAppletAID), mTimeout(0), mSelectableAid(mAppletAID),
+          omapiSeService(nullptr), eSEReader(nullptr), session(nullptr),
+          channel(nullptr), mVSReaders({}) {
+#ifdef NXP_EXTNS
+      mDeathRecipient = ::ndk::ScopedAIBinder_DeathRecipient(
+          AIBinder_DeathRecipient_new(BinderDiedCallback));
+#endif
+    }
     bool initialize();
     bool internalTransmitApdu(
             std::shared_ptr<aidl::android::se::omapi::ISecureElementReader> reader,
@@ -140,6 +145,8 @@ public:
 
 #ifdef NXP_EXTNS
     ::ndk::ScopedAIBinder_DeathRecipient mDeathRecipient;
+    std::mutex mCookieKeysMutex;
+    std::vector<uintptr_t> mCookieKeys;
 
     static void BinderDiedCallback(void *cookie);
     bool internalProtectedTransmitApdu(

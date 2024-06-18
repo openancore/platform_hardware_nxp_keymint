@@ -37,13 +37,14 @@
 #if defined OMAPI_TRANSPORT
 #include "OmapiTransport.h"
 
-#include <stdio.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
-#include <unistd.h>
-#include <string.h>
-#include <vector>
 #include <iomanip>
+#include <map>
+#include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <vector>
 
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
@@ -69,6 +70,11 @@ constexpr const char kChannelWakelockName[] = "nxp_keymint_channel";
 class SEListener : public ::aidl::android::se::omapi::BnSecureElementListener {};
 
 #ifdef NXP_EXTNS
+
+static std::mutex sCookiesMutex;
+static uintptr_t sCookiesKeyCounter = 0;
+static std::map<uintptr_t, std::weak_ptr<OmapiTransport>> sCookies;
+
 void omapiSessionTimerFunc(union sigval arg){
      LOG(INFO) << "Session Timer expired !!";
      OmapiTransport *obj = (OmapiTransport*)arg.sival_ptr;
@@ -77,11 +83,38 @@ void omapiSessionTimerFunc(union sigval arg){
 }
 
 void OmapiTransport::BinderDiedCallback(void *cookie) {
-  LOG(ERROR) << "Received binder died. OMAPI Service died";
-  auto thiz = static_cast<OmapiTransport *>(cookie);
-  thiz->closeConnection();
+    std::shared_ptr<OmapiTransport> transport = nullptr;
+    {
+      std::lock_guard lock(sCookiesMutex);
+      if (auto it = sCookies.find(reinterpret_cast<uintptr_t>(cookie));
+          it != sCookies.end()) {
+        LOG(ERROR)
+            << "Received binder died with cookie: " << cookie
+            << ". OMAPI Service died, closing connection";
+        transport = it->second.lock();
+      } else {
+        LOG(ERROR)
+            << "Received binder died with cookie: " << cookie
+            << ". OMAPI Service died, but no OmapiTransport.";
+      }
+    }
+    if (transport) {
+      transport->closeConnection();
+    }
 }
 #endif
+
+OmapiTransport::~OmapiTransport() {
+#ifdef NXP_EXTNS
+  std::lock_guard sLock(sCookiesMutex);
+  std::lock_guard mLock(mCookieKeysMutex);
+  for (auto cookie : mCookieKeys) {
+    LOG(INFO) << "OmapiTransport destructor cleaning up death recipient cookie("
+              << cookie << ") as we no longer need to listen for service death.";
+    sCookies.erase(cookie);
+  }
+#endif
+}
 
 bool OmapiTransport::initialize() {
     LOG(DEBUG) << "Initialize the secure element connection";
@@ -101,8 +134,17 @@ bool OmapiTransport::initialize() {
     }
 
 #ifdef NXP_EXTNS
-    AIBinder_linkToDeath(omapiSeService->asBinder().get(),
-                         mDeathRecipient.get(), this);
+    {
+      std::lock_guard sLock(sCookiesMutex);
+      uintptr_t cookieKey = sCookiesKeyCounter++;
+      std::lock_guard mLock(mCookieKeysMutex);
+      mCookieKeys.push_back(cookieKey);
+      sCookies[cookieKey] = shared_from_this();
+      LOG(INFO) << "linkToDeath on OMAPI service with cookie: " << cookieKey;
+      AIBinder_linkToDeath(omapiSeService->asBinder().get(),
+                           mDeathRecipient.get(),
+                           reinterpret_cast<void *>(cookieKey));
+    }
 #endif
 
     // reset readers, clear readers if already existing
@@ -286,8 +328,16 @@ bool OmapiTransport::closeConnection() {
     }
 #ifdef NXP_EXTNS
     if (omapiSeService != nullptr) {
-      AIBinder_unlinkToDeath(omapiSeService->asBinder().get(),
-                             mDeathRecipient.get(), this);
+      std::lock_guard sLock(sCookiesMutex);
+      std::lock_guard mLock(mCookieKeysMutex);
+      for (auto cookie : mCookieKeys) {
+        LOG(INFO) << "unlinkToDeath on OMAPI service with cookie: " << cookie;
+        AIBinder_unlinkToDeath(omapiSeService->asBinder().get(),
+                               mDeathRecipient.get(),
+                               reinterpret_cast<void *>(cookie));
+        sCookies.erase(cookie);
+      }
+      mCookieKeys.clear();
       omapiSeService = nullptr;
     }
     session = nullptr;
