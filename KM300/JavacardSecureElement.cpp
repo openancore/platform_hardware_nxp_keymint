@@ -13,6 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/******************************************************************************
+*
+*  The original Work has been changed by NXP.
+*
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*
+*  http://www.apache.org/licenses/LICENSE-2.0
+*
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*
+*  Copyright 2024 NXP
+*
+******************************************************************************/
 
 #define LOG_TAG "javacard.keymint.device.strongbox-impl"
 #include "JavacardSecureElement.h"
@@ -109,16 +128,15 @@ keymaster_error_t JavacardSecureElement::sendData(Instruction ins, std::vector<u
         return ret;
     }
 
-    if (!transport_->sendData(apdu, response)) {
-        LOG(ERROR) << "Error in sending data in sendData.";
+    if (!transport_->sendData(apdu, response) && (response.size() < 2)) {
+        LOG(ERROR) << "Error in sending C-APDU";
         return (KM_ERROR_SECURE_HW_COMMUNICATION_FAILED);
     }
-
     // Response size should be greater than 2. Cbor output data followed by two
     // bytes of APDU status.
-    if ((response.size() <= 2) || (getApduStatus(response) != APDU_RESP_STATUS_OK)) {
-        LOG(ERROR) << "Response of the sendData is wrong: response size = " << response.size()
-                   << " apdu status = " << getApduStatus(response);
+    if (getApduStatus(response) != APDU_RESP_STATUS_OK) {
+        LOG(ERROR) << "ERROR Response apdu status = " << std::uppercase << std::hex
+                   << getApduStatus(response);
         return (KM_ERROR_UNKNOWN_ERROR);
     }
     // remove the status bytes
