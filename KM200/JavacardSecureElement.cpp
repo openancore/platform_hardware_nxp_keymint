@@ -50,7 +50,6 @@
 
 namespace keymint::javacard {
 
-using namespace ::keymaster;
 keymaster_error_t JavacardSecureElement::initializeJavacard() {
     keymaster_error_t ret = KM_ERROR_OK;
     if (!isCardInitialized_) {

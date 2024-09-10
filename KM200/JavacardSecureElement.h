@@ -38,7 +38,7 @@
 #include <ITransport.h>
 
 #define APDU_CLS 0x80
-//#define APDU_P1 0x50
+// #define APDU_P1 0x50
 #define APDU_P1 0x40
 #define APDU_P2 0x00
 #define APDU_RESP_STATUS_OK 0x9000
@@ -96,10 +96,11 @@ enum class Instruction {
 
 class JavacardSecureElement {
   public:
-    explicit JavacardSecureElement(shared_ptr<ITransport> transport, uint32_t osVersion,
-                                   uint32_t osPatchLevel, uint32_t vendorPatchLevel)
-        : transport_(transport), osVersion_(osVersion), osPatchLevel_(osPatchLevel),
-          vendorPatchLevel_(vendorPatchLevel),
+    explicit JavacardSecureElement(shared_ptr<ITransport> transport,
+                                   uint32_t osVersion, uint32_t osPatchLevel,
+                                   uint32_t vendorPatchLevel)
+        : transport_(std::move(transport)), osVersion_(osVersion),
+          osPatchLevel_(osPatchLevel), vendorPatchLevel_(vendorPatchLevel),
           isCardInitialized_(false) {
         transport_->openConnection();
     }
