@@ -53,12 +53,19 @@
 namespace keymint::javacard {
 
 keymaster_error_t JavacardSecureElement::initializeJavacard() {
-    Array request;
-    request.add(Uint(getOsVersion()));
-    request.add(Uint(getOsPatchlevel()));
-    request.add(Uint(getVendorPatchlevel()));
-    auto [item, err] = sendRequest(Instruction::INS_INIT_STRONGBOX_CMD, request);
-    return err;
+    keymaster_error_t ret = KM_ERROR_OK;
+    if (!isCardInitialized) {
+        Array request;
+        request.add(Uint(getOsVersion()));
+        request.add(Uint(getOsPatchlevel()));
+        request.add(Uint(getVendorPatchlevel()));
+        auto [item, err] = sendRequest(Instruction::INS_INIT_STRONGBOX_CMD, request);
+        if (err == KM_ERROR_OK) {
+            isCardInitialized = true;
+        }
+        ret = err;
+    }
+    return ret;
 }
 
 void JavacardSecureElement::setDeleteAllKeysPending() {

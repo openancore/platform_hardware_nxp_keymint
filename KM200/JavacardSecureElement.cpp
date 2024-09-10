@@ -52,12 +52,19 @@ namespace keymint::javacard {
 
 using namespace ::keymaster;
 keymaster_error_t JavacardSecureElement::initializeJavacard() {
-    Array request;
-    request.add(Uint(getOsVersion()));
-    request.add(Uint(getOsPatchlevel()));
-    request.add(Uint(getVendorPatchlevel()));
-    auto [item, err] = sendRequest(Instruction::INS_SET_BOOT_PARAMS_CMD, request);
-    return err;
+    keymaster_error_t ret = KM_ERROR_OK;
+    if (!isCardInitialized_) {
+        Array request;
+        request.add(Uint(getOsVersion()));
+        request.add(Uint(getOsPatchlevel()));
+        request.add(Uint(getVendorPatchlevel()));
+        auto [item, err] = sendRequest(Instruction::INS_SET_BOOT_PARAMS_CMD, request);
+        if (err == KM_ERROR_OK) {
+            isCardInitialized_ = true;
+        }
+        ret = err;
+    }
+    return ret;
 }
 
 keymaster_error_t JavacardSecureElement::constructApduMessage(Instruction& ins,
