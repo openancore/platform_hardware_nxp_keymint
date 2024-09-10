@@ -47,11 +47,10 @@
 
 #include <map>
 
-#include "ITransport.h"
-#include <AppletConnection.h>
 #include <IntervalTimer.h>
 #include <memory>
 #include <vector>
+#include "ITransport.h"
 
 #include <SBAccessController.h>
 
@@ -121,7 +120,7 @@ public:
 
   private:
     //AppletConnection mAppletConnection;
-    SBAccessController mSBAccessController;
+    SBAccessController& mSBAccessController;
     IntervalTimer mTimer;
     int mTimeout;
     std::vector<uint8_t> mSelectableAid;
@@ -135,10 +134,16 @@ public:
     /* Applet ID Weaver */
     const std::vector<uint8_t> kWeaverAID = {0xA0, 0x00, 0x00, 0x03, 0x96, 0x10, 0x10};
 #endif
-    OmapiTransport(const std::vector<uint8_t> &mAppletAID)
-        : ITransport(mAppletAID), mTimeout(0), mSelectableAid(mAppletAID),
-          omapiSeService(nullptr), eSEReader(nullptr), session(nullptr),
-          channel(nullptr), mVSReaders({}) {
+  OmapiTransport(const std::vector<uint8_t>& mAppletAID)
+      : ITransport(mAppletAID),
+        mSBAccessController(SBAccessController::getInstance()),
+        mTimeout(0),
+        mSelectableAid(mAppletAID),
+        omapiSeService(nullptr),
+        eSEReader(nullptr),
+        session(nullptr),
+        channel(nullptr),
+        mVSReaders({}) {
 #ifdef NXP_EXTNS
       mDeathRecipient = ::ndk::ScopedAIBinder_DeathRecipient(
           AIBinder_DeathRecipient_new(BinderDiedCallback));
