@@ -161,4 +161,10 @@ JavacardSecureElement::sendRequest(Instruction ins) {
     return cbor_.decodeData(response);
 }
 
+#ifdef NXP_EXTNS
+void JavacardSecureElement::setOperationState(CryptoOperationState state) {
+    transport_->setCryptoOperationState(state);
+}
+#endif
+
 }  // namespace keymint::javacard

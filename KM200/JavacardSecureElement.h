@@ -96,6 +96,10 @@ enum class Instruction {
     INS_SEND_ROT_DATA_CMD = KEYMINT_CMD_APDU_START + 47,
 };
 
+#ifdef NXP_EXTNS
+enum CryptoOperationState { STARTED = 0, FINISHED };
+#endif
+
 class JavacardSecureElement {
   public:
     explicit JavacardSecureElement(shared_ptr<ITransport> transport,
@@ -126,6 +130,9 @@ class JavacardSecureElement {
         return (SW0 << 8 | SW1);
     }
 
+#ifdef NXP_EXTNS
+    void setOperationState(CryptoOperationState state);
+#endif
     shared_ptr<ITransport> transport_;
     uint32_t osVersion_;
     uint32_t osPatchLevel_;
