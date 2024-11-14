@@ -54,6 +54,7 @@ cc_library {
     cflags: [
         "-O0",
         "-DNXP_EXTNS",
+        "-Wno-enum-constexpr-conversion",
     ],
     shared_libs: [
         "android.hardware.security.secureclock-V1-ndk",
